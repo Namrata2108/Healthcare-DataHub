@@ -10,6 +10,14 @@ const validate = function (reqBody) {
   const validationResult = validator.validate(reqBody, jsonSchema);
   return validationResult.errors.length === 0;
 };
+// const validate = function(reqBody){
+//   if(validator.validate(reqBody, jsonSchema).errors.length<1){
+//       return true;
+//   }
+//   else{
+//       return false;
+//   }
+// }
 
 const validateValue = function (reqBody) {
     const validationResult = validator.validate(reqBody, jsonSchema);

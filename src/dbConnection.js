@@ -16,6 +16,7 @@ client.on('connect', function(){
 db.findId = async function(key){
     const temp =  await client.hGetAll(key);
     if(temp.objectId == key){
+        console.log(temp+"this is temp");
         return temp;
     }
     else{
@@ -40,6 +41,15 @@ db.addIdFromBodyReq = async function(body){
     await client.hSet(body.objectId, "objectId", body.objectId);
     return await this.findId(body.objectId);
 };
+// db.updateIdFromBodyReq = async function(body){
+//     const ETag = hash(body);
+//     await client.hSet(body.objectId, "plan", JSON.stringify(body));
+//     await client.
+//     await client.hSet(body.objectId, "ETag", ETag);
+//     await client.hSet(body.objectId, "objectId", body.objectId);
+//     // return await this.findId(body.objectId);
+//     return await this.
+// };
 
 db.deleteID = async function(params){
     if(await client.del(params.objectId)){

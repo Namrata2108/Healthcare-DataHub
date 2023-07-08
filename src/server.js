@@ -1,6 +1,7 @@
 
 const express = require('express');
 const redis = require('redis');
+const auth = require('./auth-token');
 
 const schema = require('./schema');
 const port_no = 8080;
@@ -25,44 +26,35 @@ const versionMiddleware = (req, res, next) => {
   
 app.use(versionMiddleware);
 
+// //Token endpoint for generating bearer tokens
+// app.post('/oauth2/token', [
+//   passport.authenticate(['basic'], { session: false }),
+//   server.token(),
+//   server.errorHandler(),
+// ]);
 
+// // Protect a resource using access tokens
+// app.get('/api/resource', passport.authenticate('bearer', { session: false }), (req, res) => {
+//   // Access token is valid, return the protected resource
+//   res.json({ message: 'Protected resource accessed successfully!' });
+// });
 
-app.get('/v1/healthz', async (req, res) => { 
-    console.log("Server is working properly (v1)");
-    res.status(200).send();
+app.get('/getToken', async(req, res) => {
+    const token = auth.keygen();
+    res.status(200).json({
+        'message': 'SUCCESS!',
+        'token' : token
+    });
 });
-app.get('/v2/healthz', async (req, res) => { 
-    console.log("Server is working properly (v2)");
-    res.status(200).send();
-});
 
-app.post('/plans', async (req, res) => {
-    console.log("POST: /plans");
-    // console.log(req.body);
-    if(!authe.validateToken(req)){
-        res.status(400).json({message:"wrong bearer token/format"});
+app.post('/validateToken', async(req, res) => {
+    validity = auth.validateToken(req);
+    if(validity){
+        res.status(200).json({message: "TOKEN VALID!"});
         return;
     }
-    if(schema.validator(req.body)){
-        const value = await db.findEntry(req.body.objectId);
-        if(value){
-            res.setHeader("ETag", value.ETag).status(409).json({"message":"item already exists"});
-            console.log("item already exists");
-            return;
-        }
-        else{
-            const ETag = (await db.addPlanFromReq(req.body)).ETag;
-            await elastic.enter(req.body, req.body.objectId, null, "plan");
-            res.setHeader("ETag", ETag).status(201).json({
-                "message":"item added",
-                "ETag" : ETag});
-            console.log("item added");
-            return;
-        }
-    }
     else{
-        res.status(400).json({"message":"item isn't valid"});
-        console.log("item isn't valid");
+        res.status(400).json({message:"wrong bearer token/format"});
         return;
     }
 });
@@ -71,7 +63,10 @@ app.post('/plans', async (req, res) => {
     console.log("Object created successfully ");
     console.log(req.body);
     
-
+    if(!auth.validateToken(req)){
+        res.status(400).json({message:"wrong bearer token/format"});
+        return;
+    }
 
     console.log(schema.validate(req.body));
 
@@ -114,54 +109,100 @@ app.post('/plans', async (req, res) => {
     
 });
 
-// app.post('/v2/plans', async (req, res) => {
-//     console.log("Object created successfully (v2)");
-//     console.log(req.body);
 
-
-//     console.log(schema.validate(req.body));
-
-//     if(!schema.validate(req.body)){
-//         // console.log(schema.validator);
-//         // console.log(schema.validate(req.body));
-//         // console.log(schema);
-//         console.log(schema.validateValue(req.body));
-
-//         const returnValue = schema.validateValue(req.body);
-
-//         const jsonMessage = {
-//             "message": "This item isn't valid (v2)",
-//             // "errors": returnValue.errors[0].stack
-//             "errors": returnValue.errors
-            
-//         }
-
-//         res.status(400).json(jsonMessage);
-//         console.log("This item isn't valid (v2)");
-//         return;
-//     }
-//     else{
-//         const value = await db.findId(req.body.objectId);
-//         const temp=req.body.objectId;
-//         if(value){
-//             res.setHeader("ETag", value.ETag).status(409).json({"message":"This item already exists (v2)"});
-//             console.log("This item already exists (v2)");
-//             return;
-//         }
-//         else{
-//             const ETag = (await db.addIdFromBodyReq(req.body)).ETag;
-//             res.setHeader("ETag", ETag).status(201).json({
-//                 "message":"item added successfully (v2)",
-//                 "objectID": temp});
-//             console.log("item added successfully (v2)");
-//             return;
-//         }
-//     }
+app.put('/plans/:objectId', async (req, res) => {
+    console.log("Object update successfully");
+    console.log(req.params);
     
-// });
+    if(!auth.validateToken(req)){
+        res.status(400).json({message:"wrong bearer token/format"});
+        return;
+    }
+
+    if(req.params.objectId == null && req.params.objectId == "" && req.params == {}){
+        res.status(400).json({"message":"invalid plan ID"});
+        console.log("invalid plan ID");
+        return;
+    }
+    
+    if(!schema.validate(req.body)){
+        res.status(400).json({"message":"item isn't valid"});
+        console.log("item isn't valid");
+        return;
+    }
+    const value = await db.findId(req.params.objectId);
+    if(value.objectId == req.params.objectId){
+        const ETag = value.ETag;
+        if((!req.headers['if-match'] || ETag != req.headers['if-match']) || (schema.hash(req.body) == ETag)){
+            // res.setHeader("ETag", ETag).status(412).json(JSON.parse(value.plan));
+            res.setHeader("ETag", ETag).status(400).json({"message":"get latest ETag/plan received is unmodified"});
+            console.log("get updated ETag/plan received is unmodified");
+            console.log(JSON.parse(value.plan));
+            return;
+        }
+        else{
+            const value = await db.addIdFromBodyReq(req.body);
+            // console.log(value);
+            res.setHeader("ETag", value.ETag).status(201).json(JSON.parse(value.plan));
+        }
+    }
+    else{
+        res.status(404).json({"message":"plan not found"});
+        console.log("plan not found");
+        return;
+    }
+});
+
+app.patch('/plans/:objectId', async (req, res) => {
+    console.log("Object update successfully");
+    console.log(req.params);
+    
+    if(!auth.validateToken(req)){
+        res.status(400).json({message:"wrong bearer token/format"});
+        return;
+    }
+
+    if(req.params.objectId == null && req.params.objectId == "" && req.params == {}){
+        res.status(400).json({"message":"invalid plan ID"});
+        console.log("invalid plan ID");
+        return;
+    }
+    if(!schema.validate(req.body)){
+        res.status(400).json({"message":"item isn't valid"});
+        console.log("item isn't valid");
+        return;
+    }
+    const value = await db.findId(req.params.objectId);
+    if(value.objectId == req.params.objectId){
+        const ETag = value.ETag;
+        if((!req.headers['if-match'] || ETag != req.headers['if-match']) || (schema.hash(req.body) == ETag)){
+            // res.setHeader("ETag", ETag).status(412).json(JSON.parse(value.plan));
+            res.setHeader("ETag", ETag).status(400).json({"message":"get latest ETag/plan received is unmodified"});
+            console.log("get updated ETag/plan received is unmodified");
+            console.log(JSON.parse(value.plan));
+            return;
+        }
+        else{
+            // const value = await db.addIdFromBodyReq(req.body);
+            const value = await db.addIdFromBodyReq;
+            // console.log(value);
+            res.setHeader("ETag", value.ETag).status(201).json(JSON.parse(value.plan));
+        }
+    }
+    else{
+        res.status(404).json({"message":"plan not found"});
+        console.log("plan not found");
+        return;
+    }
+});
+
 
 app.get('/plans/:objectId', async (req, res) => {
     console.log("Fetching detail of object successfully");
+    if(!auth.validateToken(req)){
+        res.status(400).json({message:"wrong bearer token/format"});
+        return;
+    }
 
     console.log(req.headers['if-none-match']);
     if(req.params.objectId == null && req.params.objectId == "" && req.params == {}){
@@ -200,6 +241,10 @@ app.get('/plans/:objectId', async (req, res) => {
 app.delete('/plans/:objectId', async(req, res) => {
     console.log("Deleting plan ");
     console.log(req.params);
+    if(!auth.validateToken(req)){
+        res.status(400).json({message:"wrong bearer token/format"});
+        return;
+    }
     if(req.params.objectId == null && req.params.objectId == "" && req.params == {}){
         res.status(400).json({"message":"Enter valid object ID"});
         return;
@@ -229,6 +274,7 @@ app.delete('/plans/:objectId', async(req, res) => {
 
 app.delete('/plans', async(req, res) => {
     console.log("Invalid request for DELETE");
+
     res.status(400).json({"message":"Enter valid object ID in URL"});
     return;
 });
@@ -245,24 +291,16 @@ app.get('/healthz', async(req, res) => {
     console.log("Enter valid URL");
     return;
 });
-// app.post('/plans', (req, res, next) => {
-//     if (req.apiVersion !== 'v1' && req.apiVersion !== 'v2') {
-//       next(new InvalidVersionError());
-//     } else if (req.apiVersion === 'v2') {
-//       next(new UnsupportedVersionError());
-//     } else {
-//       next();
-//     }
-//   }, (req, res) => {
-//     console.log(`Server is working properly (${req.apiVersion})`);
-//     res.status(200).send();
-//   });
-// app.post('/plans', async(req, res) => {
-//     console.log("Invalid request of POST");
-//     res.status(400).json({"message":"Enter valid version in URL"});
-//     console.log("Enter valid version");
-//     return;
-// });
+
+app.get('/v1/healthz', async (req, res) => { 
+    console.log("Server is working properly (v1)");
+    res.status(200).send();
+});
+app.get('/v2/healthz', async (req, res) => { 
+    console.log("Server is working properly (v2)");
+    res.status(200).send();
+});
+
 
 app.listen(port_no, () => {
     console.log('Application starting on port ', port_no);
