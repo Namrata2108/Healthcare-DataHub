@@ -26,19 +26,6 @@ const versionMiddleware = (req, res, next) => {
   
 app.use(versionMiddleware);
 
-// //Token endpoint for generating bearer tokens
-// app.post('/oauth2/token', [
-//   passport.authenticate(['basic'], { session: false }),
-//   server.token(),
-//   server.errorHandler(),
-// ]);
-
-// // Protect a resource using access tokens
-// app.get('/api/resource', passport.authenticate('bearer', { session: false }), (req, res) => {
-//   // Access token is valid, return the protected resource
-//   res.json({ message: 'Protected resource accessed successfully!' });
-// });
-
 app.get('/getToken', async(req, res) => {
     const token = auth.keygen();
     res.status(200).json({
@@ -64,7 +51,7 @@ app.post('/plans', async (req, res) => {
     console.log(req.body);
     
     if(!auth.validateToken(req)){
-        res.status(400).json({message:"wrong bearer token/format"});
+        res.status(401).json({message:"wrong bearer token/format"});
         return;
     }
 
@@ -115,7 +102,7 @@ app.put('/plans/:objectId', async (req, res) => {
     console.log(req.params);
     
     if(!auth.validateToken(req)){
-        res.status(400).json({message:"wrong bearer token/format"});
+        res.status(401).json({message:"wrong bearer token/format"});
         return;
     }
 
@@ -153,27 +140,28 @@ app.put('/plans/:objectId', async (req, res) => {
     }
 });
 
-app.patch('/plans/:objectId', async (req, res) => {
-    console.log("Object update successfully");
-    console.log(req.params);
-    
-    if(!auth.validateToken(req)){
-        res.status(400).json({message:"wrong bearer token/format"});
-        return;
-    }
 
-    if(req.params.objectId == null && req.params.objectId == "" && req.params == {}){
-        res.status(400).json({"message":"invalid plan ID"});
-        console.log("invalid plan ID");
-        return;
+app.patch('/plans/:objectId', async (req, res) => {
+    const id = req.params.id;
+    const updates = req.body;
+  
+    if (!auth.validateToken(req)) {
+      res.status(401).json({ message: "invalid bearer token/format" });
+      return;
     }
-    if(!schema.validate(req.body)){
-        res.status(400).json({"message":"item isn't valid"});
-        console.log("item isn't valid");
-        return;
+    if (req.params.objectId == null && req.params.objectId == "" && req.params == {}) {
+      res.status(400).json({ message: "invalid plan ID" });
+      console.log("invalid plan ID");
+      return;
     }
     const value = await db.findId(req.params.objectId);
-    if(value.objectId == req.params.objectId){
+    console.log(value);
+    const resource = JSON.parse(value.plan);
+    // console.log(value);
+    console.log(resource);
+    console.log("********");
+  
+    if (value.objectId == req.params.objectId) {
         const ETag = value.ETag;
         if((!req.headers['if-match'] || ETag != req.headers['if-match']) || (schema.hash(req.body) == ETag)){
             // res.setHeader("ETag", ETag).status(412).json(JSON.parse(value.plan));
@@ -182,25 +170,54 @@ app.patch('/plans/:objectId', async (req, res) => {
             console.log(JSON.parse(value.plan));
             return;
         }
-        else{
-            // const value = await db.addIdFromBodyReq(req.body);
-            const value = await db.addIdFromBodyReq;
-            // console.log(value);
-            res.setHeader("ETag", value.ETag).status(201).json(JSON.parse(value.plan));
+      else {
+          
+        deepMerge(resource, updates);
+        console.log("here's the resource");
+        console.log(resource);
+        if(!schema.validate(resource)){
+                    res.status(400).json({"message":"item isn't valid"});
+                    console.log("item isn't valid");
+                    return;
+                }
+                
+                const value1 = await db.addIdFromBodyReq(resource);
+                // const updatedObject = Object.assign(JSON.parse(value.plan), updates);
+                
+                            // console.log(value);
+                res.setHeader("ETag", value.ETag).status(201).json(JSON.parse(value1.plan));
+                // res.setHeader("ETag", value.ETag).status(201).json(updatedObject.plan);
+                    
+
+      }
+    } else {
+      res.status(404).json({ message: "plan not found" });
+      console.log("plan not found");
+      return;
+    }
+  
+  });
+  
+  function deepMerge(target, source) {
+    for (let key in source) {
+      if (typeof source[key] === 'object' && !Array.isArray(source[key])) {
+        if (!target[key]) {
+          target[key] = {};
         }
+        console.log(target[key]);
+        console.log(source[key]);
+        deepMerge(target[key], source[key]);
+      } else {
+        target[key] = source[key];
+      }
     }
-    else{
-        res.status(404).json({"message":"plan not found"});
-        console.log("plan not found");
-        return;
-    }
-});
+  }
 
 
 app.get('/plans/:objectId', async (req, res) => {
     console.log("Fetching detail of object successfully");
     if(!auth.validateToken(req)){
-        res.status(400).json({message:"wrong bearer token/format"});
+        res.status(401).json({message:"wrong bearer token/format"});
         return;
     }
 
@@ -242,7 +259,7 @@ app.delete('/plans/:objectId', async(req, res) => {
     console.log("Deleting plan ");
     console.log(req.params);
     if(!auth.validateToken(req)){
-        res.status(400).json({message:"wrong bearer token/format"});
+        res.status(401).json({message:"wrong bearer token/format"});
         return;
     }
     if(req.params.objectId == null && req.params.objectId == "" && req.params == {}){
@@ -306,65 +323,46 @@ app.listen(port_no, () => {
     console.log('Application starting on port ', port_no);
 });
 
-
-// const authe = require('./authe');
-// const schema = require('./schema').default;
-// import express from 'express';
-// import redis from 'redis';
-// import schema from './schema.js';
-// const schema={};
-// const schema = require('./schema.js');
-// const Ajv = require('ajv');
-// const ajv = new Ajv();
-// const validateFunction = ajv.compile(schema);
-
-
-// const ajv = require('Ajv');
-// const validate = ajv.compile(schema);
-// import {Ajv} from 'ajv';
-
-// import { readFile } from 'fs/promises';
-
-// const schemaData = await readFile('Json-schema.json');
-
-// const jsonSchema = JSON.parse(schemaData);
-
-// const userSchema = require('./userSchema.json');
-//import jsonschema from './userSchema.json';
-
-
-// const ajv = new Ajv();
-// const validateUser = ajv.compile(jsonSchema);
-
-    // const valid = validateUser(req.body);
-
-    // if (!valid) {
-    //     const error = validateUser.errors[0].message;
-    //     res.status(400).json({"message":"This item isn't valid"});
-    //     console.log("This item isn't valid");
-    //     return;
-    //     }
+// app.patch('/plans/:objectId', async (req, res) => {
+//     console.log("Object update successfully");
+//     console.log(req.params);
     
-    // const isValid = validate(data);
-
-    // const v1Routes = require('./routes/v1');
-// const v2Routes = require('./routes/v2');
-
-// app.use('/plans/v1', v1Routes);
-// app.use('/plans/v2', v2Routes);
-
-// class InvalidVersionError extends Error {}
-// class UnsupportedVersionError extends Error {}
-// const versionErrorMiddleware = (err, req, res, next) => {
-//     if (err instanceof InvalidVersionError) {
-//       res.status(400).json({ message: 'Invalid API version' });
-//     } else if (err instanceof UnsupportedVersionError) {
-//       res.status(400).json({ message: 'Unsupported API version' });
-//     } else {
-      
-//       next(err);
+//     if(!auth.validateToken(req)){
+//         res.status(400).json({message:"wrong bearer token/format"});
+//         return;
 //     }
-//   };
-  
-  
-//   app.use(versionErrorMiddleware);
+
+//     if(req.params.objectId == null && req.params.objectId == "" && req.params == {}){
+//         res.status(400).json({"message":"invalid plan ID"});
+//         console.log("invalid plan ID");
+//         return;
+//     }
+//     if(!schema.validate(req.body)){
+//         res.status(400).json({"message":"item isn't valid"});
+//         console.log("item isn't valid");
+//         return;
+//     }
+//     const value = await db.findId(req.params.objectId);
+//     if(value.objectId == req.params.objectId){
+//         const ETag = value.ETag;
+//         if((!req.headers['if-match'] || ETag != req.headers['if-match']) || (schema.hash(req.body) == ETag)){
+//             // res.setHeader("ETag", ETag).status(412).json(JSON.parse(value.plan));
+//             res.setHeader("ETag", ETag).status(400).json({"message":"get latest ETag/plan received is unmodified"});
+//             console.log("get updated ETag/plan received is unmodified");
+//             console.log(JSON.parse(value.plan));
+//             return;
+//         }
+//         else{
+//             // const value = await db.addIdFromBodyReq(req.body);
+            
+//             const value = await db.updateIdFromBodyReq(req.params.objectId,req.body);
+//             // console.log(value);
+//             res.setHeader("ETag", value.ETag).status(201).json(JSON.parse(value.plan));
+//         }
+//     }
+//     else{
+//         res.status(404).json({"message":"plan not found"});
+//         console.log("plan not found");
+//         return;
+//     }
+// });

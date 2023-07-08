@@ -1,26 +1,30 @@
 {
     "$schema": "http://json-schema.org/draft-04/schema#",
-    "title": "JSON Schema",
-    "description": "JSON Schema for the Use Case",
+    "title": "JSON-schema",
+    "description": "Json Schema describing the data model for the use case",
     "type": "object",
     "properties": {
         "planCostShares": {
             "type": "object",
             "properties": {
                 "deductible": {
-                    "type": "number"
+                    "type": ["number", "null"]
+                    
                 },
                 "_org": {
-                    "type": "string"
+                    "type": ["string", "null"],
+                    "minLength": 1
                 },
                 "copay": {
-                    "type": "number"
+                    "type": ["number", "null"]
                 },
                 "objectId": {
-                    "type": "string"
+                    "type": ["string", "null"],
+                    "minLength": 1
                 },
                 "objectType": {
-                    "type": "string"
+                    "type": ["string", "null"],
+                    "minLength": 1
                 }
             },
             "required" : ["deductible", "_org", "copay", "objectId", "objectType"]
@@ -35,16 +39,20 @@
                         "type": "object",
                         "properties": {
                             "_org": {
-                                "type": "string"
+                                "type": ["string", "null"],
+                                "minLength": 1
                             },
                             "objectId": {
-                                "type": "string"
+                                "type": ["string", "null"],
+                                "minLength": 1
                             },
                             "objectType": {
-                                "type": "string"
+                                "type": ["string", "null"],
+                                "minLength": 1
                             },
                             "name": {
-                                "type": "string"
+                                "type": ["string", "null"],
+                                "minLength": 1
                             }
                         },
                         "required": ["_org", "name", "objectId", "objectType"]
@@ -53,52 +61,63 @@
                         "type": "object",
                         "properties": {
                             "deductible": {
-                                "type": "number"
+                                "type": ["number", "null"]
                             },
                             "_org": {
-                                "type": "string"
+                                "type": ["string", "null"],
+                                "minLength": 1
                             },
                             "copay": {
-                                "type": "number"
+                                "type": ["number", "null"]
                             },
                             "objectId": {
-                                "type": "string"
+                                "type": ["string", "null"],
+                                "minLength": 1
                             },
                             "objectType": {
-                                "type": "string"
+                                "type": ["string", "null"],
+                                "minLength": 1
                             }
                         },
                         "required": ["deductible", "_org", "copay", "objectId", "objectType"]
                     },
                     "_org": {
-                        "type": "string"
+                        "type": ["string", "null"],
+                        "minLength": 1
                     },
                     "objectId": {
-                        "type": "string"
+                        "type": ["string", "null"],
+                        "minLength": 1
                     },
                     "objectType": {
-                        "type": "string"
+                        "type": ["string", "null"],
+                        "minLength": 1
                     }
                 },
                 "required": ["linkedService", "planserviceCostShares", "_org", "objectId", "objectType"]
             }
         },
         "_org": {
-            "type": "string"
+            "type": ["string", "null"],
+            "minLength": 1
         },
         "objectId": {
-            "type": "string"
+            "type": ["string", "null"],
+            "minLength": 1
         },
         "objectType": {
-            "type": "string"
+            "type": ["string", "null"],
+            "minLength": 1
         },
         "planType": {
-            "type": "string"
+            "type": ["string", "null"],
+            "minLength": 1
         },
         "creationDate": {
-            "type": "string"
+            "type": ["string", "null"],
+            "minLength": 1
         }
     },
-    "required" : ["planCostShares", "linkedPlanServices", "_org", "objectId", "objectType", "planType", "creationDate"],
+    "required" : [ "_org", "objectId", "objectType", "planType", "creationDate"],
     "additionalProperties": false
 }
